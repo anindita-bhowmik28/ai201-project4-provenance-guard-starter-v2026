@@ -304,6 +304,25 @@ $ curl "http://127.0.0.1:5000/log?limit=2"
   documented the observed `0.7769` versus `0.3528` signal split rather than
   claiming the signals always agree.
 
+---
+
+## Declared Stretch Features
+
+The following stretch work is declared before its implementation:
+
+1. **A third signal:** a repeated-phrase signal will measure repeated trigrams,
+   a property not directly represented by the model score or the aggregate
+   style measures. The final combined score will weight the model signal at
+   `0.55`, style at `0.30`, and repeated phrases at `0.15`.
+2. **`GET /content/<id>`:** this route will return one submission's original
+   decision and current status, including `under_review` after an appeal. A
+   request and real response will be added below after implementation.
+3. **A verified-human path:** a writer will complete an explicit local
+   verification step to receive a persistent credential. Later submissions by
+   that creator will show the credential without overriding or hiding the
+   detector's scores. The README will document the limitation that this local
+   demonstration is self-attestation, not identity proof.
+
 <!-- ═══════════════════════ UNIT 8 — THE TEST ═══════════════════════ -->
 
 ---
