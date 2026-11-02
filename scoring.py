@@ -52,8 +52,9 @@ def combine_signals(
         reads more human means fewer false accusations and more AI text
         getting through. There's no weighting that avoids the trade.
 
-      - Milestone 4 asks you to find a case where your two signals split and
-        write it down. That case is what this rule exists to handle.
+      - Milestone 4 asks you to find a case where the original two signals
+        split and write it down. That case is what this rule exists to handle,
+        even after adding the optional third signal.
 
     The weights in config.py are placeholders. Change them, or ignore them and
     write a different rule.

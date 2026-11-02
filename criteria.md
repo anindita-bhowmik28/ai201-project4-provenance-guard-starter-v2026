@@ -50,7 +50,7 @@ high-confidence AI label at a combined score of 0.65 or higher).
 
 **Why this target:** A false accusation costs a real writer more than allowing
 some generated text through. The 0.65 AI threshold and broad unsure band are
-intended to keep confident accusations uncommon unless both signals agree.
+intended to keep confident accusations uncommon unless multiple signals agree.
 
 ---
 

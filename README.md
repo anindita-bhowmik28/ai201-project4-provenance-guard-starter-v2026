@@ -317,12 +317,12 @@ $ curl "http://127.0.0.1:5000/log?limit=2"
 - *What I asked for:* I asked Codex to trace the submission and appeal paths,
   identify each component's responsibility, and check whether the endpoint
   contracts were specific enough to implement.
-- *What came back:* It proposed a seven-stage path from JSON validation through
-  both signals, scoring, labeling, and audit logging, plus explicit success and
-  error response shapes.
-- *What I changed:* I kept the seven-stage structure, made the appeal preserve
-  the original decision in an append-only log, and specified `400` for invalid
-  input and `404` for an unknown content ID.
+- *What came back:* It proposed an initial seven-stage path from JSON validation
+  through the two required signals, scoring, labeling, and audit logging, plus
+  explicit success and error response shapes.
+- *What I changed:* I extended the path to eight stages when I added the third
+  signal, made the appeal preserve the original decision in an append-only log,
+  and specified `400` for invalid input and `404` for an unknown content ID.
 
 **Moment 2**
 
@@ -332,10 +332,11 @@ $ curl "http://127.0.0.1:5000/log?limit=2"
 - *What came back:* It suggested normalized surface measures and a weighted
   average, then reported the separate model, style, and combined scores for
   all four calibration passages.
-- *What I changed:* I used a `0.65` model / `0.35` style weighting instead of
-  the starter's equal placeholders, kept disagreement in the unsure band, and
-  documented the observed `0.7769` versus `0.3528` signal split rather than
-  claiming the signals always agree.
+- *What I changed:* I first used a `0.65` model / `0.35` style weighting instead
+  of the starter's equal placeholders. After declaring the third-signal
+  stretch, I changed the final weights to `0.55` model / `0.30` style / `0.15`
+  repeated phrases, kept disagreement in the unsure band, and documented the
+  observed split rather than claiming the signals always agree.
 
 ---
 
