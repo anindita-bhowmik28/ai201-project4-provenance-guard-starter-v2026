@@ -49,7 +49,7 @@
    labels: high-confidence human, unsure, or high-confidence AI.
 7. The service writes the decision and all three scores to
    `logs/audit.jsonl`, then returns the identifier, guess, confidence, label,
-   and both signal scores as JSON.
+   and all three signal scores as JSON.
 
 If a real writer receives a false positive, their combined score has crossed
 the high-confidence AI threshold and the label says the service believes the
@@ -75,7 +75,8 @@ On success it returns status `200` with:
   "confidence": 0.0,
   "label": "A complete reader-facing sentence.",
   "model_score": 0.0,
-  "style_score": 0.0
+  "style_score": 0.0,
+  "repetition_score": 0.0
 }
 ```
 
@@ -140,6 +141,24 @@ It cannot understand meaning or authorship. Typos, sentence splitting,
 quotations, unusual formatting, and light editing can change its score without
 changing who wrote the ideas.
 
+### Signal three — the repeated-phrase signal (stretch)
+
+**What it measures:**
+
+`repetition.py::repeated_phrase_signal` measures the proportion of exact
+three-word phrases that occur more than once. A 20% repeated-trigram rate maps
+to the maximum score of 1.0.
+
+**Why that might differ between human and AI writing:**
+
+Generated or template-driven prose can reuse the same local phrase structure,
+especially when restating a point across several even sentences.
+
+**What it can't see:**
+
+Paraphrasing defeats exact matching, while intentional refrains, technical
+terms, and quotations can make human writing look repetitive.
+
 ### The combining rule
 
 <!-- Write the rule in words, then give the numbers. What happens when the two
@@ -147,29 +166,32 @@ changing who wrote the ideas.
 
 **The rule:**
 
-Take a weighted average of the two scores. The model signal gets more weight
+Take a weighted average of the three scores. The model signal gets more weight
 because it considers word sequences, while surface style is easier to change
-with sentence splitting, punctuation, or typos. When the signals strongly
-disagree, their opposing values pull the result toward the unsure band instead
-of allowing either signal to make a confident accusation alone.
+with sentence splitting, punctuation, or typos, and exact repetition is a
+narrower heuristic. When the signals strongly disagree, their opposing values
+pull the result toward the unsure band instead of allowing one signal to make a
+confident accusation alone.
 
 **The numbers:**
 
-`combined = (0.65 × model_score) + (0.35 × style_score)`. Both inputs and the
-result are clamped to the inclusive range 0.0–1.0.
+`combined = (0.55 × model_score) + (0.30 × style_score) + (0.15 ×
+repetition_score)`. All three inputs and the result are clamped to the
+inclusive range 0.0–1.0.
 
 **Where it lives:** `scoring.py::combine_signals`
 
 <!-- ⚠️ The grader checks your code against that line. If your rule lives
      somewhere else, say where. -->
 
-**A case where my two signals split, and what my rule does with it:**
+**A case where my signals split, and what my rule does with it:**
 
 On the conventional generated-style calibration passage beginning “The
 implementation of this framework…,” the model signal was `0.7769` while the
-style signal was `0.3528`. The weighted rule produced `0.6285`, keeping the
-decision below the high-confidence AI threshold because the independent
-signals did not agree strongly enough for a confident accusation.
+style signal was `0.3528` and the repeated-phrase signal was `0.0000`. The
+three-signal weighted rule produced `0.5331`, keeping the decision in the
+unsure band because the independent signals did not agree strongly enough for
+a confident accusation.
 
 
 ---

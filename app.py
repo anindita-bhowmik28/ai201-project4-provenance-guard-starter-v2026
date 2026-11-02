@@ -31,6 +31,7 @@ from flask import Flask, jsonify, request
 import audit
 import config
 import detector
+import repetition
 import scoring
 import stylometry
 
@@ -241,7 +242,12 @@ def submit():
         }), 503
 
     style_score = stylometry.style_signal(text.strip())
-    combined_score = scoring.combine_signals(model_score, style_score)
+    repetition_score = repetition.repeated_phrase_signal(text.strip())
+    combined_score = scoring.combine_signals(
+        model_score,
+        style_score,
+        repetition_score,
+    )
     guess, label = scoring.score_to_label(combined_score)
     audit.log_decision(
         content_id=content_id,
@@ -251,6 +257,7 @@ def submit():
         style_score=style_score,
         combined_score=combined_score,
         label=label,
+        repetition_score=repetition_score,
     )
     return jsonify({
         "content_id": content_id,
@@ -259,6 +266,7 @@ def submit():
         "label": label,
         "model_score": model_score,
         "style_score": style_score,
+        "repetition_score": repetition_score,
     })
 
 

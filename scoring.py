@@ -19,16 +19,22 @@ you claim, so that line should read `scoring.py::combine_signals`.
 import config
 
 
-def combine_signals(model_score: float, style_score: float) -> float:
+def combine_signals(
+    model_score: float,
+    style_score: float,
+    repetition_score: float,
+) -> float:
     """
     Combine two 0–1 signals into one 0–1 score.
 
-    Both inputs point the same way: higher means more likely AI. Your output
+    All inputs point the same way: higher means more likely AI. Your output
     should too.
 
     Args:
         model_score: from `detector.model_signal` — how predictable the text is.
         style_score: from `stylometry.style_signal` — the shape of the text.
+        repetition_score: from `repetition.repeated_phrase_signal` — exact
+            repeated three-word phrases.
 
     Returns:
         A float from 0.0 (confidently human) to 1.0 (confidently AI).
@@ -52,16 +58,22 @@ def combine_signals(model_score: float, style_score: float) -> float:
     The weights in config.py are placeholders. Change them, or ignore them and
     write a different rule.
     """
-    if not 0.0 <= model_score <= 1.0 or not 0.0 <= style_score <= 1.0:
+    scores = (model_score, style_score, repetition_score)
+    if any(not 0.0 <= score <= 1.0 for score in scores):
         raise ValueError("Signal scores must be between 0.0 and 1.0.")
 
-    total_weight = config.WEIGHT_MODEL_SIGNAL + config.WEIGHT_STYLE_SIGNAL
+    total_weight = (
+        config.WEIGHT_MODEL_SIGNAL
+        + config.WEIGHT_STYLE_SIGNAL
+        + config.WEIGHT_REPETITION_SIGNAL
+    )
     if total_weight <= 0:
         raise ValueError("Signal weights must add up to a positive number.")
 
     combined = (
         config.WEIGHT_MODEL_SIGNAL * model_score
         + config.WEIGHT_STYLE_SIGNAL * style_score
+        + config.WEIGHT_REPETITION_SIGNAL * repetition_score
     ) / total_weight
     return round(min(max(combined, 0.0), 1.0), 4)
 

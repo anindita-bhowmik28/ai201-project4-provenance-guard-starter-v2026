@@ -59,8 +59,9 @@ MAX_TEXT_CHARACTERS = 20_000
 # down BEFORE you code it, and to put the numbers in your README. Whatever you
 # decide, it goes here.
 
-WEIGHT_MODEL_SIGNAL = 0.65
-WEIGHT_STYLE_SIGNAL = 0.35
+WEIGHT_MODEL_SIGNAL = 0.55
+WEIGHT_STYLE_SIGNAL = 0.30
+WEIGHT_REPETITION_SIGNAL = 0.15
 
 
 # ─── Thresholds (Milestone 5) ────────────────────────────────────────────────
