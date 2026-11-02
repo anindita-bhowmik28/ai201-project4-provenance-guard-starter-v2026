@@ -146,7 +146,16 @@ changing who wrote the ideas.
 
 **The rule:**
 
+Take a weighted average of the two scores. The model signal gets more weight
+because it considers word sequences, while surface style is easier to change
+with sentence splitting, punctuation, or typos. When the signals strongly
+disagree, their opposing values pull the result toward the unsure band instead
+of allowing either signal to make a confident accusation alone.
+
 **The numbers:**
+
+`combined = (0.65 × model_score) + (0.35 × style_score)`. Both inputs and the
+result are clamped to the inclusive range 0.0–1.0.
 
 **Where it lives:** `scoring.py::combine_signals`
 
@@ -155,6 +164,11 @@ changing who wrote the ideas.
 
 **A case where my two signals split, and what my rule does with it:**
 
+On the conventional generated-style calibration passage beginning “The
+implementation of this framework…,” the model signal was `0.7769` while the
+style signal was `0.3528`. The weighted rule produced `0.6285`, keeping the
+decision below the high-confidence AI threshold because the independent
+signals did not agree strongly enough for a confident accusation.
 
 
 ---

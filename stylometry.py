@@ -64,8 +64,15 @@ def sentence_length_spread(text: str) -> float:
     `stdev` raises on fewer than two values. Decide what that should return
     before the attack set decides for you.
     """
-    # TODO: replace this
-    return 0.0
+    lengths = [len(words(sentence)) for sentence in sentences(text)]
+    lengths = [length for length in lengths if length]
+    if len(lengths) < 2:
+        return 0.0
+
+    mean_length = statistics.mean(lengths)
+    if mean_length == 0:
+        return 0.0
+    return round(statistics.pstdev(lengths) / mean_length, 4)
 
 
 def type_token_ratio(text: str) -> float:
@@ -80,8 +87,10 @@ def type_token_ratio(text: str) -> float:
     directly comparable on it, and if your test inputs vary a lot in length,
     that alone can look like a signal.
     """
-    # TODO: replace this
-    return 0.0
+    tokens = words(text)[:100]
+    if not tokens:
+        return 0.0
+    return round(len(set(tokens)) / len(tokens), 4)
 
 
 def punctuation_density(text: str) -> float:
@@ -94,8 +103,11 @@ def punctuation_density(text: str) -> float:
         more interesting than full stops, because they vary more between
         writers.
     """
-    # TODO: replace this
-    return 0.0
+    visible_characters = sum(not char.isspace() for char in text)
+    if visible_characters == 0:
+        return 0.0
+    punctuation = re.findall(r"[^\w\s']", text, flags=re.UNICODE)
+    return round(len(punctuation) / visible_characters, 4)
 
 
 # ── Combining them ───────────────────────────────────────────────────────────
@@ -122,8 +134,24 @@ def style_signal(text: str) -> float:
     you trust it. Plain and ordinary, not formal: formal prose reads as *human*
     to signal one, and it is plain writing that gets accused.
     """
-    # TODO: replace this
-    return 0.5
+    spread = sentence_length_spread(text)
+    vocabulary = type_token_ratio(text)
+    punctuation = punctuation_density(text)
+
+    # Convert each measure to a 0–1 human-like component before combining.
+    # The reference points are intentionally reachable rather than hard caps:
+    # a coefficient of variation of 0.65, a TTR of 0.90, or punctuation on 6%
+    # of visible characters each counts as strongly human-shaped.
+    spread_human = min(max(spread / 0.65, 0.0), 1.0)
+    vocabulary_human = min(max((vocabulary - 0.45) / 0.45, 0.0), 1.0)
+    punctuation_human = min(max(punctuation / 0.06, 0.0), 1.0)
+
+    human_style = (
+        0.45 * spread_human
+        + 0.35 * vocabulary_human
+        + 0.20 * punctuation_human
+    )
+    return round(1.0 - min(max(human_style, 0.0), 1.0), 4)
 
 
 if __name__ == "__main__":
@@ -139,4 +167,4 @@ if __name__ == "__main__":
     print(f"type_token_ratio         {type_token_ratio(text)}")
     print(f"punctuation_density      {punctuation_density(text)}")
     print(f"style_signal             {style_signal(text)}   (higher = more likely AI)")
-    print("\nAll zeros? These are stubs — Milestone 4 is where you build them.")
+    print("\nEach measure is normalized inside style_signal before weighting.")

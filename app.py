@@ -31,6 +31,8 @@ from flask import Flask, jsonify, request
 import audit
 import config
 import detector
+import scoring
+import stylometry
 
 app = Flask(__name__)
 
@@ -231,23 +233,26 @@ def submit():
             "message": str(exc),
         }), 503
 
-    guess = "ai" if model_score >= 0.5 else "human"
+    style_score = stylometry.style_signal(text.strip())
+    combined_score = scoring.combine_signals(model_score, style_score)
+    guess = "ai" if combined_score >= 0.5 else "human"
     placeholder_label = "A final reader-facing label has not been assigned yet."
     audit.log_decision(
         content_id=content_id,
         creator_id=creator_id.strip(),
         guess=guess,
         model_score=model_score,
-        combined_score=model_score,
+        style_score=style_score,
+        combined_score=combined_score,
         label=placeholder_label,
     )
     return jsonify({
         "content_id": content_id,
         "guess": guess,
-        "confidence": model_score,
+        "confidence": combined_score,
         "label": placeholder_label,
         "model_score": model_score,
-        "style_score": None,
+        "style_score": style_score,
     })
 
 
