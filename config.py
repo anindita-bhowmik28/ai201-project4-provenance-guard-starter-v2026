@@ -46,6 +46,11 @@ DETECTOR_MODEL = os.getenv("AI201_DETECTOR_MODEL", "gpt2")
 # 300 words, which is enough for the signal to mean something.
 DETECTOR_MAX_TOKENS = 400
 
+# Reject bodies that would make the non-model signal and audit path do
+# unbounded work. The model truncates tokens, but the rest of the route does
+# not, so this is a route-level limit rather than a detector setting.
+MAX_TEXT_CHARACTERS = 20_000
+
 
 # ─── Scoring (Milestone 4) ───────────────────────────────────────────────────
 # How much each signal counts toward the combined score.

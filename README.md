@@ -87,7 +87,8 @@ On success it returns status `200` with:
 
 On success it returns status `200` with the same `content_id`, status
 `under_review`, and a confirmation message. Invalid JSON or missing fields
-return status `400`; an unknown content ID returns status `404`.
+return status `400`; text over 20,000 characters returns status `413`; and an
+unknown content ID returns status `404`.
 <!-- The path a submission takes, from arriving to the label a reader sees.
      Six or seven steps — this is the trace you wrote in Milestone 1. -->
 

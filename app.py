@@ -215,6 +215,14 @@ def submit():
             "error": "invalid_text",
             "message": "text must be a non-empty string.",
         }), 400
+    if len(text) > config.MAX_TEXT_CHARACTERS:
+        return jsonify({
+            "error": "text_too_large",
+            "message": (
+                f"text must be at most {config.MAX_TEXT_CHARACTERS:,} "
+                "characters."
+            ),
+        }), 413
     if not isinstance(creator_id, str) or not creator_id.strip():
         return jsonify({
             "error": "invalid_creator_id",
