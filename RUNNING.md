@@ -90,6 +90,7 @@ position.**
 | `GET /log` | **works** | The audit log, as JSON |
 | `POST /submit` | **you build it** | Milestones 3, 4, 5 |
 | `POST /appeal` | **you build it** | Milestone 5 |
+| `GET /content/<id>` | **stretch** | One item's decision and current status |
 
 ---
 
