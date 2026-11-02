@@ -35,7 +35,59 @@
 <!-- ═══════════════════════ UNIT 7 — THE BUILD ═══════════════════════ -->
 
 ## What This Does
+1. A client sends `POST /submit` with a JSON object containing the writing in
+   `text` and the writer identifier in `creator_id`.
+2. The route validates both fields and assigns the submission a unique
+   `content_id` so later events can refer to the same item.
+3. `detector.py::model_signal` measures how predictable the text is to a local
+   language model and returns a model score from 0 to 1.
+4. `stylometry.py::style_signal` measures the text's shape—sentence-length
+   variation, vocabulary variety, and punctuation—and returns a second score.
+5. `scoring.py::combine_signals` combines the independent scores into one
+   confidence score, with higher values meaning more likely AI-generated.
+6. `scoring.py::score_to_label` maps that score to one of three reader-facing
+   labels: high-confidence human, unsure, or high-confidence AI.
+7. The service writes the decision and all three scores to
+   `logs/audit.jsonl`, then returns the identifier, guess, confidence, label,
+   and both signal scores as JSON.
 
+If a real writer receives a false positive, their combined score has crossed
+the high-confidence AI threshold and the label says the service believes the
+work was probably AI-generated. They can send `POST /appeal` with the same
+`content_id` and their reasoning. The service preserves the original decision,
+records the appeal, changes the item's status to `under_review`, and confirms
+that a person should review it instead of automatically scoring it again.
+
+### Endpoint contracts
+
+`POST /submit` accepts:
+
+```json
+{"text": "The writing to evaluate.", "creator_id": "writer-123"}
+```
+
+On success it returns status `200` with:
+
+```json
+{
+  "content_id": "unique UUID",
+  "guess": "human | unsure | ai",
+  "confidence": 0.0,
+  "label": "A complete reader-facing sentence.",
+  "model_score": 0.0,
+  "style_score": 0.0
+}
+```
+
+`POST /appeal` accepts:
+
+```json
+{"content_id": "an existing UUID", "reasoning": "Why the decision may be wrong."}
+```
+
+On success it returns status `200` with the same `content_id`, status
+`under_review`, and a confirmation message. Invalid JSON or missing fields
+return status `400`; an unknown content ID returns status `404`.
 <!-- The path a submission takes, from arriving to the label a reader sees.
      Six or seven steps — this is the trace you wrote in Milestone 1. -->
 
@@ -55,17 +107,37 @@
 
 **What it measures:**
 
+How predictable the sequence of words is to a local GPT-2 language model.
+Lower perplexity becomes a higher AI-likelihood score.
+
 **Why that might differ between human and AI writing:**
 
+Generated prose often follows likely next-word patterns, while human writing
+can contain idiosyncratic choices and abrupt changes that are less predictable.
+
 **What it can't see:**
+
+Predictability is not authorship. Plain human writing, writing by younger or
+second-language writers, and deliberately conventional prose may look highly
+predictable. Conversely, ornate or edited AI text may look surprising.
 
 ### Signal two — the style signal
 
 **What it measures:**
 
+The surface shape of the text: normalized sentence-length spread, vocabulary
+variety, and punctuation density.
+
 **Why that might differ between human and AI writing:**
 
+Generated prose often uses evenly sized sentences and repeated, conventional
+wording, whereas human prose is frequently less regular.
+
 **What it can't see:**
+
+It cannot understand meaning or authorship. Typos, sentence splitting,
+quotations, unusual formatting, and light editing can change its score without
+changing who wrote the ideas.
 
 ### The combining rule
 
