@@ -281,15 +281,28 @@ $ curl "http://127.0.0.1:5000/log?limit=2"
 
 **Moment 1**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* I asked Codex to trace the submission and appeal paths,
+  identify each component's responsibility, and check whether the endpoint
+  contracts were specific enough to implement.
+- *What came back:* It proposed a seven-stage path from JSON validation through
+  both signals, scoring, labeling, and audit logging, plus explicit success and
+  error response shapes.
+- *What I changed:* I kept the seven-stage structure, made the appeal preserve
+  the original decision in an append-only log, and specified `400` for invalid
+  input and `404` for an unknown content ID.
 
 **Moment 2**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* I asked Codex to implement the style measures, review a
+  two-signal combining rule, and test it on clearly AI, clearly human, formal
+  human, and lightly edited AI passages.
+- *What came back:* It suggested normalized surface measures and a weighted
+  average, then reported the separate model, style, and combined scores for
+  all four calibration passages.
+- *What I changed:* I used a `0.65` model / `0.35` style weighting instead of
+  the starter's equal placeholders, kept disagreement in the unsure band, and
+  documented the observed `0.7769` versus `0.3528` signal split rather than
+  claiming the signals always agree.
 
 <!-- ═══════════════════════ UNIT 8 — THE TEST ═══════════════════════ -->
 

@@ -157,8 +157,7 @@ def health():
 # @limiter.limit(f"{config.RATE_LIMIT_PER_MINUTE}/minute;{config.RATE_LIMIT_PER_DAY}/day")
 def submit():
     """
-    Take a piece of text, decide about it, log the decision, answer.
-    ← TODO — Milestones 3, 4 and 5
+    Take a piece of text, decide about it, log the decision, and answer.
 
     Expects JSON:
         {"text": "...", "creator_id": "..."}
@@ -258,7 +257,7 @@ def submit():
 @app.post("/appeal")
 def appeal():
     """
-    A writer says you got it wrong. ← TODO — Milestone 5
+    Record a writer's request for human review.
 
     Expects JSON:
         {"content_id": "...", "reasoning": "..."}
