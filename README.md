@@ -366,6 +366,55 @@ $ curl http://127.0.0.1:5000/content/377d543e-b553-40b7-8c4f-f91b66dab22e
 }
 ```
 
+### Verified-human credential
+
+The extra step is an explicit local self-attestation:
+
+```bash
+$ curl -X POST http://127.0.0.1:5000/verify-human \
+  -H "Content-Type: application/json" \
+  -d '{"creator_id":"verified-sample-writer","verification_statement":"I attest that I wrote the sample and completed the local verification step."}'
+```
+
+```json
+{
+  "created": true,
+  "credential": {
+    "creator_id": "verified-sample-writer",
+    "credential_id": "c4c62f94-2158-48e5-b76e-beecd929368a",
+    "method": "local_self_attestation",
+    "verified_at": "2026-11-02T19:46:07+00:00"
+  },
+  "message": "Local self-attestation recorded. This credential is not identity proof."
+}
+```
+
+The credential is persistent and appears on later work by that creator without
+replacing the detector's decision or any score:
+
+```json
+{
+  "confidence": 0.3095,
+  "content_id": "e25ea86b-03fd-4d3c-86dc-0b4e6b3e0ea1",
+  "guess": "human",
+  "human_credential": {
+    "creator_id": "verified-sample-writer",
+    "credential_id": "c4c62f94-2158-48e5-b76e-beecd929368a",
+    "method": "local_self_attestation",
+    "verified_at": "2026-11-02T19:46:07+00:00"
+  },
+  "label": "We think this was probably written by a person.",
+  "model_score": 0.4357,
+  "repetition_score": 0.0,
+  "style_score": 0.2329,
+  "verified_human": true
+}
+```
+
+This credential only proves that the local verification step was completed. It
+is intentionally labeled `local_self_attestation`; it does not prove legal
+identity or guarantee that the credential holder authored every submission.
+
 <!-- ═══════════════════════ UNIT 8 — THE TEST ═══════════════════════ -->
 
 ---

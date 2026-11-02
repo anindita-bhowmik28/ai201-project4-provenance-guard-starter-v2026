@@ -1,0 +1,8 @@
+{
+  "verified-sample-writer": {
+    "credential_id": "c4c62f94-2158-48e5-b76e-beecd929368a",
+    "creator_id": "verified-sample-writer",
+    "method": "local_self_attestation",
+    "verified_at": "2026-11-02T19:46:07+00:00"
+  }
+}

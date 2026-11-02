@@ -30,6 +30,7 @@ from flask import Flask, jsonify, request
 
 import audit
 import config
+import credentials
 import detector
 import repetition
 import scoring
@@ -249,6 +250,7 @@ def submit():
         repetition_score,
     )
     guess, label = scoring.score_to_label(combined_score)
+    human_credential = credentials.get_credential(creator_id.strip())
     audit.log_decision(
         content_id=content_id,
         creator_id=creator_id.strip(),
@@ -258,6 +260,8 @@ def submit():
         combined_score=combined_score,
         label=label,
         repetition_score=repetition_score,
+        verified_human=human_credential is not None,
+        human_credential=human_credential,
     )
     return jsonify({
         "content_id": content_id,
@@ -267,7 +271,47 @@ def submit():
         "model_score": model_score,
         "style_score": style_score,
         "repetition_score": repetition_score,
+        "verified_human": human_credential is not None,
+        "human_credential": human_credential,
     })
+
+
+@app.post("/verify-human")
+def verify_human():
+    """Issue a persistent local self-attestation credential to a writer."""
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({
+            "error": "invalid_json",
+            "message": "Send a JSON object with creator_id and verification_statement.",
+        }), 400
+
+    creator_id = payload.get("creator_id")
+    statement = payload.get("verification_statement")
+    if not isinstance(creator_id, str) or not creator_id.strip():
+        return jsonify({
+            "error": "invalid_creator_id",
+            "message": "creator_id must be a non-empty string.",
+        }), 400
+    if not isinstance(statement, str) or len(statement.strip()) < 20:
+        return jsonify({
+            "error": "invalid_verification_statement",
+            "message": "verification_statement must contain at least 20 characters.",
+        }), 400
+
+    credential, created = credentials.verify_creator(creator_id.strip())
+    if created:
+        audit.log_verification(
+            creator_id=creator_id.strip(),
+            credential_id=credential["credential_id"],
+        )
+    return jsonify({
+        "credential": credential,
+        "created": created,
+        "message": (
+            "Local self-attestation recorded. This credential is not identity proof."
+        ),
+    }), 201 if created else 200
 
 
 @app.post("/appeal")
@@ -351,6 +395,8 @@ def get_content(content_id):
         "label": original.get("label"),
         "status": latest.get("status", original.get("status", "decided")),
         "appealed": any(entry.get("event") == "appeal" for entry in entries),
+        "verified_human": original.get("verified_human", False),
+        "human_credential": original.get("human_credential"),
     })
 
 
