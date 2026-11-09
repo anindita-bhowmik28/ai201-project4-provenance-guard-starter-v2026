@@ -1,0 +1,5 @@
+id,family,targets,raw_body,send_as,content_type
+MR01,malformed_request,400 not 500,"[]",json,application/json
+MR02,malformed_request,400 not 500,"{not valid json",raw,application/json
+MR03,malformed_request,400 not 500,"",raw,application/json
+MR04,missing_creator,400 not 500,"{""text"":""A valid passage with enough ordinary words to reach the route but no creator identifier.""}",json,application/json

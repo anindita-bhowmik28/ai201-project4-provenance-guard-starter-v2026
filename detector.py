@@ -42,11 +42,13 @@ for yourself where it lands.
 """
 
 import math
+import threading
 
 import config
 
 _model = None
 _tokenizer = None
+_load_lock = threading.Lock()
 
 
 class DetectorUnavailable(RuntimeError):
@@ -58,6 +60,20 @@ def _load():
     global _model, _tokenizer
     if _model is not None:
         return _model, _tokenizer
+
+    # Flask may receive two first requests at once.  Without a lock both can
+    # mutate the shared Transformers objects during initialization, leaving a
+    # partially loaded model behind.  Re-check after acquiring because another
+    # request may have completed while this one waited.
+    with _load_lock:
+        if _model is not None:
+            return _model, _tokenizer
+        return _load_unlocked()
+
+
+def _load_unlocked():
+    """Load shared model state while ``_load_lock`` is held."""
+    global _model, _tokenizer
 
     try:
         import torch  # noqa: F401

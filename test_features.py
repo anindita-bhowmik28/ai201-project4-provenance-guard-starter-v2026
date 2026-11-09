@@ -9,6 +9,7 @@ import app
 import audit
 import config
 import scoring
+import stylometry
 
 
 class ProvenanceGuardTests(unittest.TestCase):
@@ -54,7 +55,22 @@ class ProvenanceGuardTests(unittest.TestCase):
         self.assertEqual(scoring.score_to_label(0.51)[0], "unsure")
         self.assertEqual(scoring.score_to_label(0.95)[0], "ai")
 
-    def test_invalid_and_oversized_input_is_rejected_without_log(self):
+    def test_vocabulary_measure_is_length_normalized(self):
+        varied = "one two three four five six seven eight nine ten "
+        short = (varied * 3).strip()
+        long = (varied * 9).strip()
+        self.assertAlmostEqual(
+            stylometry.type_token_ratio(short),
+            stylometry.type_token_ratio(long),
+            places=2,
+        )
+
+    def test_punctuation_stuffing_is_not_maximally_human(self):
+        stuffed = "A clause; another—clause... really?! (yes): more, marks!!!"
+        self.assertGreater(stylometry.punctuation_density(stuffed), 0.06)
+        self.assertGreater(stylometry.style_signal(stuffed), 0.20)
+
+    def test_invalid_and_oversized_input_is_rejected_without_decision(self):
         cases = (
             (self.client.post("/submit", json={"creator_id": "x"}), 400),
             (self.client.post("/submit", json={"creator_id": "x", "text": ""}), 400),
@@ -65,7 +81,28 @@ class ProvenanceGuardTests(unittest.TestCase):
             }), 413),
         )
         self.assertTrue(all(response.status_code == status for response, status in cases))
-        self.assertEqual(audit.read_entries(), [])
+        entries = audit.read_entries()
+        self.assertEqual(len(entries), 4)
+        self.assertTrue(all(entry["event"] == "rejected" for entry in entries))
+        self.assertTrue(all(entry["status"] == "rejected" for entry in entries))
+        self.assertTrue(all(entry["guess"] is None for entry in entries))
+        required = {
+            "timestamp", "content_id", "creator_id", "guess", "model_score",
+            "style_score", "combined_score", "label", "status",
+        }
+        self.assertTrue(all(required <= entry.keys() for entry in entries))
+
+    def test_rate_limit_is_per_creator_and_audits_rejection(self):
+        allowed = [self.submit("rate-limit-writer") for _ in range(10)]
+        rejected = self.submit("rate-limit-writer")
+        other_creator = self.submit("different-writer")
+
+        self.assertTrue(all(response.status_code == 200 for response in allowed))
+        self.assertEqual(rejected.status_code, 429)
+        self.assertEqual(other_creator.status_code, 200)
+        rejection = audit.read_entries()[-2]
+        self.assertEqual(rejection["creator_id"], "rate-limit-writer")
+        self.assertEqual(rejection["reason"], "rate_limited")
 
     def test_appeal_updates_content_status(self):
         content_id = self.submit().get_json()["content_id"]

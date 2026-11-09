@@ -102,14 +102,17 @@ def log_rejection(creator_id: str, reason: str, **extra) -> dict:
     thousand requests that got a 429 and left no trace look exactly like a
     quiet afternoon.
     """
-    return _append({
-        "timestamp": _now(),
-        "creator_id": creator_id,
-        "event": "rejected",
-        "status": "rejected",
-        "reason": reason,
+    # Rejections use the same stable nine-field schema as decisions.  Values
+    # that do not exist for a request rejected before scoring are explicit
+    # nulls, rather than missing keys that make the audit file hard to query.
+    return log_decision(
+        content_id=None,
+        creator_id=creator_id,
+        status="rejected",
+        event="rejected",
+        reason=reason,
         **extra,
-    })
+    )
 
 
 def log_verification(creator_id: str, credential_id: str) -> dict:

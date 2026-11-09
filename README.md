@@ -132,7 +132,8 @@ predictable. Conversely, ornate or edited AI text may look surprising.
 **What it measures:**
 
 The surface shape of the text: normalized sentence-length spread, vocabulary
-variety, and punctuation density.
+variety measured as mean type-token ratio over fixed 25-word windows, and a
+punctuation component that peaks at 3% density and tapers to zero at 6%.
 
 **Why that might differ between human and AI writing:**
 
@@ -435,7 +436,7 @@ identity or guarantee that the credential holder authored every submission.
 
 ## Rate Limiting
 
-**My limits:** ___ per minute, ___ per day
+**My limits:** 10 submissions per minute and 200 submissions per day.
 
 **Why those numbers and not others:**
 <!-- Think about two people: a real writer submitting their own work a few
@@ -443,22 +444,42 @@ identity or guarantee that the credential holder authored every submission.
      thresholds. Your numbers have to be liveable for the first and hostile to
      the second. -->
 
+Ten per minute allows a writer to retry several drafts without normal use
+being interrupted, while stopping a tight loop after ten model-backed calls.
+Two hundred per day permits sustained editing but makes a thousand-variation
+threshold-mapping script take several days per identity. The in-memory store
+is appropriate for this single-process demonstration; production would need a
+shared persistent backend so restarts and multiple workers cannot reset it.
+
 **What a caller counts as:** <!-- per address, or per creator_id? They fail
 differently — one script can look like a thousand callers, and one household
 can look like one. -->
+
+The limiter keys valid submissions by `creator_id`, with the network address
+only as a fallback for bodies without a usable creator. This catches one
+creator changing addresses, and it avoids making everyone on one household or
+campus connection share a quota. Its cost is that an attacker can rotate fake
+creator IDs unless identity is authenticated.
 
 **The run of status codes when I pushed past it:**
 
 <!-- python run_attacks.py --flood 15 -->
 
 ```
-
+200 200 200 200 200 200 200 200 200 200 429 429 429 429 429
 ```
+
+This was produced by `run_attacks.py::run_flood`; the complete artifact is
+[`results/flood_2026-11-09_1259.md`](results/flood_2026-11-09_1259.md).
 
 ---
 
 ## Attack Run — Before
-
+The complete 12-input table, with an outcome and HELD/BROKE judgment on every
+row, is in
+[`results/attack_run_2026-11-09_1259_before.md`](results/attack_run_2026-11-09_1259_before.md).
+The four evasion inputs broke the detector; both human-false-positive attacks,
+both repeated-template evasions, and all four malformed-request attacks held.
 <!-- Every attack with its outcome and a held-or-broke mark.
      `run_attacks.py --label before` produces the table. -->
 
@@ -469,13 +490,30 @@ can look like one. -->
 <!-- Choose entries that show the interesting failures, not the ten easiest. -->
 
 ```json
-
+{"timestamp":"2026-11-09T18:03:38+00:00","content_id":"abbb8abc-75c7-4bbd-a4ea-33363e060bef","creator_id":"attacker_EV01","guess":"human","model_score":0.0346,"style_score":0.3653,"combined_score":0.1286,"label":"We think this was probably written by a person.","status":"decided","repetition_score":0.0}
+{"timestamp":"2026-11-09T18:03:38+00:00","content_id":"e68d9ced-ed0e-4d46-be17-905c4273f227","creator_id":"attacker_EV02","guess":"unsure","model_score":0.3311,"style_score":0.5664,"combined_score":0.352,"label":"We cannot tell reliably who wrote this, so no accusation should be made from this result.","status":"decided","repetition_score":0.0}
+{"timestamp":"2026-11-09T18:03:38+00:00","content_id":"ffd0b51e-45ef-4893-b677-78e738c50fc4","creator_id":"attacker_EV03","guess":"human","model_score":0.0779,"style_score":0.263,"combined_score":0.1217,"label":"We think this was probably written by a person.","status":"decided","repetition_score":0.0}
+{"timestamp":"2026-11-09T18:03:39+00:00","content_id":"a89cd717-5d5f-4dd4-a563-a4a4dc60249a","creator_id":"attacker_EV04","guess":"human","model_score":0.1482,"style_score":0.3628,"combined_score":0.1904,"label":"We think this was probably written by a person.","status":"decided","repetition_score":0.0}
+{"timestamp":"2026-11-09T18:03:39+00:00","content_id":"bd0cd876-e8e8-4c02-a5d5-b7ab81c4dcf1","creator_id":"attacker_FP01","guess":"unsure","model_score":0.4669,"style_score":0.4392,"combined_score":0.3886,"label":"We cannot tell reliably who wrote this, so no accusation should be made from this result.","status":"decided","repetition_score":0.0}
+{"timestamp":"2026-11-09T18:03:39+00:00","content_id":"23b2180e-1b54-4f5b-b45b-def9cc8d264a","creator_id":"attacker_FP02","guess":"human","model_score":0.3718,"style_score":0.3173,"combined_score":0.2997,"label":"We think this was probably written by a person.","status":"decided","repetition_score":0.0}
+{"timestamp":"2026-11-09T18:03:39+00:00","content_id":"abe122cb-d578-43f7-a6d3-1305157878e1","creator_id":"attacker_RP01","guess":"ai","model_score":0.8871,"style_score":0.7697,"combined_score":0.8688,"label":"We think this was probably generated by AI; if you wrote it yourself, you can ask for a human review.","status":"decided","repetition_score":1.0}
+{"timestamp":"2026-11-09T18:03:39+00:00","content_id":"48ff05c3-c2fc-4a3b-95c6-7198aaeae099","creator_id":"attacker_RP02","guess":"unsure","model_score":0.5352,"style_score":0.7502,"combined_score":0.6499,"label":"We cannot tell reliably who wrote this, so no accusation should be made from this result.","status":"decided","repetition_score":0.8696}
+{"timestamp":"2026-11-09T18:03:39+00:00","content_id":null,"creator_id":"unknown","guess":null,"model_score":null,"style_score":null,"combined_score":null,"label":null,"status":"rejected","event":"rejected","reason":"invalid_json"}
+{"timestamp":"2026-11-09T18:03:39+00:00","content_id":null,"creator_id":"unknown","guess":null,"model_score":null,"style_score":null,"combined_score":null,"label":null,"status":"rejected","event":"rejected","reason":"invalid_creator_id"}
 ```
+
+Every line carries the required stable fields: `timestamp`, `content_id`,
+`creator_id`, `guess`, `model_score`, `style_score`, `combined_score`, `label`,
+and `status`. A rejected request uses explicit nulls for values that do not
+exist rather than changing the schema.
 
 **The single worst outcome** — the one I'd least want to explain to a writer
 whose work got caught by it:
 
-
+EV03 was the worst outcome: punctuation stuffing drove an AI-like passage to
+`0.0617`, a high-confidence-human label. Both the model stage (`0.0779`) and
+the original monotonic punctuation component treated the superficial edits as
+human evidence.
 
 ---
 
@@ -485,21 +523,56 @@ whose work got caught by it:
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |
+| 1. Human false positives | ≤1 AI among 10 human passages of ≥75 words | 0 AI; inputs 50–68 words | 0 AI; inputs 50–68 words | 0 AI; inputs 50–68 words | **MISS** — length precondition was not met |
+| 2. Source score gap | generated mean at least 0.20 above human mean; inputs 75–150 words | −0.0680; inputs 33–60 words | −0.0680; inputs 33–60 words | −0.0680; inputs 33–60 words | **MISS** |
+| 3. Label coverage | 0.20→human, 0.51→unsure, 0.95→AI | PASS | PASS | PASS | **PASS** |
+| 4. Appeal path | 5/5 return 200 + `under_review` and are logged | 5/5 | 5/5 | 5/5 | **PASS** |
+| 5. Bad input | 400, 400, 400, 413; no decision entry | 400/400/400/413 | 400/400/400/413 | 400/400/400/413 | **PASS** |
+
+The complete three-trial output is
+[`results/run_2026-11-09_1300_before.md`](results/run_2026-11-09_1300_before.md).
+The misses are reported rather than retroactively lowering either target.
 
 **Real output from one trial**, pasted as text, naming the file and function
 that produced it:
 
 ```json
-
+[
+  {"score": 0.2, "guess": "human", "label": "We think this was probably written by a person."},
+  {"score": 0.51, "guess": "unsure", "label": "We cannot tell reliably who wrote this, so no accusation should be made from this result."},
+  {"score": 0.95, "guess": "ai", "label": "We think this was probably generated by AI; if you wrote it yourself, you can ask for a human review."}
+]
 ```
 
-**Diagnoses**
+Produced by `run_eval.py::main`, calling `scoring.py::score_to_label` for
+criterion 3. The same three results appeared in every trial.
 
+**Diagnoses**
+1. **Criterion 1 miss — scenario construction stage:** the observed result was
+   0/10 AI labels in all three trials, but the passages were 50–68 words while
+   the criterion requires at least 75. The labels met the numerical false-
+   positive limit, but the run cannot establish the stated target because the
+   required input population was not actually supplied.
+2. **Criterion 2 miss — scenario construction and style-signal stages:** the
+   passages were 33–60 words instead of 75–150, and the generated mean
+   (`0.4351`) was below the human mean (`0.5031`). The human passages were
+   longer on average. `stylometry.py::type_token_ratio` used unique words over
+   the whole passage, a measure that falls mechanically with length, so it
+   assigned the longer human set more AI-like style scores. The 0.30 style
+   weight carried that bias into the combined score.
+3. **EV01 typo evasion — model and style stages:** misspellings made the token
+   sequence surprising to GPT-2 (`0.0346`) and created unique word forms in
+   the vocabulary measure (`style_score 0.4056`), producing `0.1407` human.
+4. **EV02 fragment evasion — model/combining stages:** short list-like
+   fragments reduced predictability enough that the model was only `0.3311`;
+   with no repetition evidence, the weighted score was `0.2920` human.
+5. **EV03 punctuation evasion — model and style stages:** added punctuation
+   lowered model predictability to `0.0779`, while the original punctuation
+   component increased monotonically and treated 6.85% punctuation as
+   maximally human. The combined result was `0.0617` human.
+6. **EV04 paraphrase evasion — model/combining stages:** replacing repeated
+   local phrases drove the exact-trigram signal to zero and the model score to
+   `0.1482`; the weighted rule therefore returned `0.2069` human.
 <!-- For each miss AND each broken attack: the stage and the mechanism.
 
      Your service has five stages: the route, signal one, signal two, the
@@ -522,16 +595,53 @@ that produced it:
 
 **What I changed:**
 
+I replaced whole-passage type-token ratio with mean segmental type-token ratio
+over fixed 25-word windows in `stylometry.py::type_token_ratio`. This removes
+passage length as an automatic source of lower vocabulary variety. A regression
+test now verifies that repeating the same vocabulary over a longer passage
+does not substantially change the measure.
+
 **Which diagnosis pointed at it:**
 
-### Attack Run — After
+Criterion 2 had the longer human set score more AI-like than the shorter
+generated set. The diagnosis identified the whole-passage vocabulary ratio as
+a length-sensitive mechanism inside the style stage.
 
+### Attack Run — After
+The directly comparable rerun is
+[`results/attack_run_2026-11-09_1301_after_length_normalization.md`](results/attack_run_2026-11-09_1301_after_length_normalization.md).
+All 12 rows use the same columns and all have HELD/BROKE marks. The four
+evasion attacks still broke; the remaining eight attacks held.
 <!-- Same format. `run_attacks.py --label after` -->
 
 
 
 **Did it help, and how do I know:**
+It helped slightly but did not fix the miss. In the repeated criterion run,
+the generated-minus-human mean moved from `-0.0680` to `-0.0590` in every
+trial. The human mean fell from `0.5031` to `0.4873`, more than the generated
+mean fell (`0.4351` to `0.4283`), which is the direction predicted by removing
+the length bias. The cost was a small reduction in scores on both sides, and
+the criterion still missed its `+0.20` target. Full output:
+[`results/run_2026-11-09_1302_after_length_normalization.md`](results/run_2026-11-09_1302_after_length_normalization.md).
 
+### Second measured improvement
+
+The EV03 diagnosis showed that punctuation was treated as monotonically human.
+I changed the punctuation component to peak at a moderate 3% density and taper
+to zero at 6%, so adding punctuation indefinitely no longer earns an unlimited
+human reward. The third attack run is
+[`results/attack_run_2026-11-09_1303_after_punctuation_taper.md`](results/attack_run_2026-11-09_1303_after_punctuation_taper.md),
+and the third criteria run is
+[`results/run_2026-11-09_1303_after_punctuation_taper.md`](results/run_2026-11-09_1303_after_punctuation_taper.md).
+
+The change raised EV03 from `0.0617` to `0.1217` and EV02 from `0.2920`
+(`human`) to `0.3520` (`unsure`), but both still met their evasion target, so
+both remain BROKE. It also cost detection on RP02, which moved from `0.6778`
+(`ai`, HELD) to `0.6499` (`unsure`, BROKE), and slightly worsened criterion 2
+from `-0.0590` to `-0.0607`. The second change therefore helped its diagnosed
+signal mechanism but made the overall attack result worse, which is retained
+and reported rather than hidden.
 <!-- Widening the unsure band usually fixes one problem and creates another.
      Reporting that trade honestly is worth full credit. -->
 
@@ -540,14 +650,45 @@ that produced it:
 ---
 
 ## What's Still Broken
+The four original evasion attacks still get through. EV01 needs a signal that
+does not reward novel misspellings; EV03 shows that surface-only heuristics
+cannot recover authorship when GPT-2 also assigns a very low AI score. EV04
+shows the exact-trigram signal cannot see paraphrase. I would next evaluate a
+character-level anomaly signal and a semantic repetition measure on a larger,
+independently sourced calibration set, but I stopped rather than tuning more
+rules to twelve known attacks. RP02 also became a new miss after the second
+change, demonstrating that the punctuation taper reduced the score of genuine
+template repetition near the AI threshold.
 
+Criteria 1 and 2 also remain unestablished because their supplied passages do
+not meet the declared word-count ranges. Criterion 2 additionally remains a
+numerical miss (`-0.0607` versus `+0.20`). The honest next step is to collect
+ten independently authored human passages and five generated passages in the
+specified 75–150-word range, not pad or relabel the present text after seeing
+the result.
 <!-- For each attack still getting through and each criterion still missed:
      what you'd do, and why you stopped. -->
 
 
 
 **The trade I'd make if this ran for real:**
+I would keep the broad unsure band and require human review rather than lower
+the AI threshold to catch these evasions. That lets more generated text
+through, but the alternative makes real writers pay through false accusations;
+on a writing platform, the service operator should absorb the review cost.
 
+**Repository:**
+https://github.com/anindita-bhowmik28/ai201-project4-provenance-guard-starter-v2026
+
+### Current-rubric stretch status
+
+- Per-creator limiting is present and measured, including its abuse coverage
+  and cost, but it was not declared under the current stretch list before
+  implementation, so this README does not retroactively claim eligibility.
+- A second change has a third same-format attack run and an honest effectiveness
+  statement above; again, it is evidence rather than a retroactive declaration.
+- No points are claimed for attacking another team's system because no named
+  external system or real outcomes were available. No results were invented.
 <!-- Two sentences. Fewer wrong accusations means more AI text getting through.
      Say which way you'd go and WHO PAYS FOR IT. -->
 

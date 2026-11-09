@@ -156,7 +156,7 @@ def health():
 # ── YOU BUILD THIS ────────────────────────────────────────────────────────────
 
 @app.post("/submit")
-# @limiter.limit(f"{config.RATE_LIMIT_PER_MINUTE}/minute;{config.RATE_LIMIT_PER_DAY}/day")
+@limiter.limit(f"{config.RATE_LIMIT_PER_MINUTE}/minute;{config.RATE_LIMIT_PER_DAY}/day")
 def submit():
     """
     Take a piece of text, decide about it, log the decision, and answer.
@@ -204,7 +204,10 @@ def submit():
     a malformed input is one of the most common real failures there is.
     """
     payload = request.get_json(silent=True)
+    creator_id = payload.get("creator_id", "unknown") if isinstance(
+        payload, dict) else "unknown"
     if not isinstance(payload, dict):
+        audit.log_rejection(creator_id=creator_id, reason="invalid_json")
         return jsonify({
             "error": "invalid_json",
             "message": "Send a JSON object with text and creator_id.",
@@ -213,11 +216,23 @@ def submit():
     text = payload.get("text")
     creator_id = payload.get("creator_id")
     if not isinstance(text, str) or not text.strip():
+        audit.log_rejection(
+            creator_id=creator_id
+            if isinstance(creator_id, str) and creator_id.strip()
+            else "unknown",
+            reason="invalid_text",
+        )
         return jsonify({
             "error": "invalid_text",
             "message": "text must be a non-empty string.",
         }), 400
     if len(text) > config.MAX_TEXT_CHARACTERS:
+        audit.log_rejection(
+            creator_id=creator_id
+            if isinstance(creator_id, str) and creator_id.strip()
+            else "unknown",
+            reason="text_too_large",
+        )
         return jsonify({
             "error": "text_too_large",
             "message": (
@@ -226,6 +241,7 @@ def submit():
             ),
         }), 413
     if not isinstance(creator_id, str) or not creator_id.strip():
+        audit.log_rejection(creator_id="unknown", reason="invalid_creator_id")
         return jsonify({
             "error": "invalid_creator_id",
             "message": "creator_id must be a non-empty string.",
@@ -420,7 +436,8 @@ def get_log():
 def main():
     print(f"Provenance Guard on http://{config.HOST}:{config.PORT}")
     print(f"  detector model:  {config.DETECTOR_MODEL}")
-    print(f"  rate limiting:   {'ON' if config.RATE_LIMITING_ENABLED else 'off (unit 8)'}")
+    print(
+        f"  rate limiting:   {'ON' if config.RATE_LIMITING_ENABLED else 'off (unit 8)'}")
     print(f"  audit log:       {config.AUDIT_LOG}")
     print()
     print("Check it's alive:")

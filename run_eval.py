@@ -28,6 +28,7 @@ import sys
 from pathlib import Path
 
 import config
+import scoring
 
 # Windows consoles often run a codepage that can't print every character in
 # this file's help text. Without this, `--help` ends in a UnicodeEncodeError
@@ -113,13 +114,21 @@ def main():
         trials = []
         for trial in range(1, args.trials + 1):
             results = []
+            if scenario.get("mode") == "labels":
+                for score in scenario["scores"]:
+                    guess, label = scoring.score_to_label(score)
+                    results.append({"score": score, "guess": guess, "label": label})
+                trials.append(results)
+                print(f"  trial {trial}: " + ", ".join(r["guess"] for r in results))
+                continue
+
             for i, body in enumerate(bodies_for(scenario), 1):
                 preview = describe(body)
                 try:
                     response = requests.post(f"{args.url}/submit", json=body,
                                              timeout=args.timeout)
                     payload = response.json() if response.content else {}
-                    results.append({
+                    result = {
                         "status": response.status_code,
                         "guess": payload.get("guess"),
                         "confidence": payload.get("confidence"),
@@ -127,13 +136,31 @@ def main():
                         "style_score": payload.get("style_score"),
                         "label": payload.get("label"),
                         "sent": preview,
-                    })
+                        "word_count": len(body.get("text", "").split())
+                        if isinstance(body, dict) and isinstance(body.get("text"), str)
+                        else None,
+                    }
+                    if scenario.get("mode") == "appeals" and response.status_code == 200:
+                        reasoning = f"Criterion 4 trial {trial}: review submission {payload['content_id']}."
+                        appeal = requests.post(
+                            f"{args.url}/appeal",
+                            json={"content_id": payload["content_id"], "reasoning": reasoning},
+                            timeout=args.timeout,
+                        )
+                        appeal_payload = appeal.json() if appeal.content else {}
+                        result.update({
+                            "content_id": payload["content_id"],
+                            "appeal_status": appeal.status_code,
+                            "review_status": appeal_payload.get("status"),
+                            "reasoning": reasoning,
+                        })
+                    results.append(result)
                 except Exception as exc:  # noqa: BLE001
                     results.append({"status": None, "error": f"{type(exc).__name__}: {exc}",
                                     "sent": preview})
 
             trials.append(results)
-            guesses = [r.get("guess") or "—" for r in results]
+            guesses = [r.get("guess") or r.get("review_status") or "—" for r in results]
             print(f"  trial {trial}: {', '.join(guesses)}")
 
         rows.append({"scenario": scenario, "trials": trials})

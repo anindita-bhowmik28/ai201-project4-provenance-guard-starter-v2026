@@ -77,20 +77,31 @@ def sentence_length_spread(text: str) -> float:
 
 def type_token_ratio(text: str) -> float:
     """
-    Unique words over total words.
+    Mean unique-word ratio across fixed 25-word windows.
 
     Returns:
         A float between 0 and 1. Higher means more varied vocabulary.
 
-    Worth knowing before you rely on it: this measure falls as text gets
-    longer, because common words repeat. Two texts of different lengths aren't
-    directly comparable on it, and if your test inputs vary a lot in length,
-    that alone can look like a signal.
+    A whole-passage ratio falls as text gets longer because common words
+    repeat. Fixed windows reduce that length bias, although topic, names, and
+    deliberate misspellings can still inflate the measure.
     """
-    tokens = words(text)[:100]
+    tokens = words(text)
     if not tokens:
         return 0.0
-    return round(len(set(tokens)) / len(tokens), 4)
+
+    # A whole-passage ratio falls mechanically as a passage gets longer.  The
+    # evaluation exposed that bias: longer human samples appeared more
+    # repetitive than shorter generated samples.  Mean segmental TTR compares
+    # fixed 25-word windows so length is not silently treated as authorship.
+    window = 25
+    if len(tokens) <= window:
+        return round(len(set(tokens)) / len(tokens), 4)
+    ratios = [
+        len(set(tokens[start:start + window])) / window
+        for start in range(len(tokens) - window + 1)
+    ]
+    return round(statistics.mean(ratios), 4)
 
 
 def punctuation_density(text: str) -> float:
@@ -144,7 +155,14 @@ def style_signal(text: str) -> float:
     # of visible characters each counts as strongly human-shaped.
     spread_human = min(max(spread / 0.65, 0.0), 1.0)
     vocabulary_human = min(max((vocabulary - 0.45) / 0.45, 0.0), 1.0)
-    punctuation_human = min(max(punctuation / 0.06, 0.0), 1.0)
+    # Moderate punctuation variety can be human-like, but the attack run
+    # showed that a monotonic rule lets an attacker add punctuation until the
+    # component says "maximally human."  Peak at 3% and taper back to zero at
+    # 6%, so punctuation stuffing no longer receives an unlimited reward.
+    punctuation_human = min(
+        max(1.0 - abs(punctuation - 0.03) / 0.03, 0.0),
+        1.0,
+    )
 
     human_style = (
         0.45 * spread_human

@@ -24,7 +24,8 @@ PORT = int(os.getenv("PORT", "5000"))
 # Flask's debug mode gives anyone who can reach the service an interactive
 # Python prompt inside your process. Fine on loopback, a gift to strangers
 # anywhere else — so it turns itself off the moment HOST isn't loopback.
-DEBUG = os.getenv("AI201_DEBUG", "1") == "1" and HOST in ("127.0.0.1", "localhost")
+DEBUG = os.getenv("AI201_DEBUG", "1") == "1" and HOST in (
+    "127.0.0.1", "localhost")
 
 
 # ─── The local model ─────────────────────────────────────────────────────────
@@ -98,7 +99,7 @@ AI_THRESHOLD = 0.65
 # an hour, and a script sending a thousand variations to map your thresholds.
 # Your README has to say why your numbers and not others.
 
-RATE_LIMITING_ENABLED = os.getenv("AI201_RATE_LIMITS", "0") == "1"
+RATE_LIMITING_ENABLED = os.getenv("AI201_RATE_LIMITS", "1") == "1"
 
 RATE_LIMIT_PER_MINUTE = 10
 RATE_LIMIT_PER_DAY = 200
